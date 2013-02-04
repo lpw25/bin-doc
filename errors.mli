@@ -37,3 +37,5 @@ type error =
 | Comments of comment_error
 
 exception Error of error * Location.t
+
+val report_error: Format.formatter -> Location.t -> error -> unit

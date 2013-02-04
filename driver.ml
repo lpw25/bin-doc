@@ -89,15 +89,12 @@ let print_standard_library () =
 let files = ref []
 
 let anonymous f =
-  let ft =
-    if Filename.check_suffix f "ml" then
-      Impl_file
-    else if Filename.check_suffix f "mli" then
-      Intf_file
-    else
-      failwith ("Unknown file extension: f")
-  in
-    files := !files @ [f, ft]
+  if Filename.check_suffix f "ml" then
+    files := !files @ [f, Impl_file]
+  else if Filename.check_suffix f "mli" then
+    files := !files @ [f, Intf_file]
+  else
+    ()
 
 let impl f = files := !files @ [f, Impl_file];;
 
@@ -207,17 +204,13 @@ let process_file (file, ftype) =
           Doctree.Dfile_intf doctree
   in
   Pparse.remove_preprocessed inputfile;
-  let cmd_name = 
-    match !output_name with
-      Some n -> n
-    | None -> prefixname ^ ".cmd"
-  in
+  let cmd_name = prefixname ^ ".cmd" in
     save_cmd cmd_name modulename file doctree
 
 let _ = 
-  parse_args ();
-  match !output_name, !files with
-    Some _, (_ :: _ :: _) ->
-      Misc.fatal_error "-o option used with multiple input files"
-  | _ ->  List.iter process_file !files
+  try
+    parse_args ();
+    List.iter process_file !files
+  with Errors.Error(e, loc) ->
+    Errors.report_error Format.err_formatter loc e
   
