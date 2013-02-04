@@ -154,6 +154,19 @@ and special_comment = parse
     { incr_line lexbuf;
       buffer_lexeme lexbuf;
       special_comment lexbuf }
+| (newline (blank* as blanks)) as prefix "*)"
+    { incr_line ~chars:((String.length blanks) + 2) lexbuf;
+      match !comment_start_locs with
+        [] -> assert false
+      | [l] ->
+          comment_start_locs := [];
+          buffer_string prefix;
+          let s = get_buffered_string () in
+            Some (Special(s, l.Location.loc_end))
+      | _ :: rest ->
+          comment_start_locs := rest;
+          buffer_lexeme lexbuf;
+          special_comment lexbuf }
 | (newline as n) ((blank* '*') as extra)
     { incr_line ~chars:(String.length extra) lexbuf;
       (* TODO Keep the extra as well if "-stars" is not given *)
