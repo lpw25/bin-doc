@@ -35,7 +35,7 @@ let remove_closing_blanks s =
   in
   let finish = get_finish (length - 1) in
     if finish = length then None
-    else Some (String.sub s 0 finish)
+    else Some (String.sub s 0 (finish + 1))
 
 let remove_blanks s =
   match remove_opening_blanks s with

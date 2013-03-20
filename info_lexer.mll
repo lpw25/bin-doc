@@ -143,8 +143,8 @@ let uident = uppercase identchar*
 let exception = uident ('.' uident)*
 
 (* The characters which are not the start of any tokens other than Char *)
-let safe = [^ '\010' '\013' '\\' '{' '}' '[' ']' '<']
-let safe_not_blank = [^ ' ' '\009' '\012' '\010' '\013' '\\' '{' '}' '[' ']' '<']
+let safe = [^ '\010' '\013' '\\' '{' '}' '[' ']' '<' 'v' '%' '@']
+let safe_not_blank = [^ ' ' '\009' '\012' '\010' '\013' '\\' '{' '}' '[' ']' '<' 'v' '%' '@']
 
 let escape = '\\' (['{' '}' '[' ']' '@'] as chr)
 
@@ -265,10 +265,10 @@ rule main = parse
       string_start_loc := Location.curr lexbuf;
       target_format := None;
       target lexbuf }
-| newline end target
+| newline target end
     { incr_line ~chars:2 lexbuf;
       raise (Error (Lexer Unmatched_target, Location.curr lexbuf)) }
-| blank? end target
+| blank? target end
     { raise (Error (Lexer Unmatched_target, Location.curr lexbuf)) }
 | begin_code end_code
     { Char (Lexing.lexeme lexbuf) }
