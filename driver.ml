@@ -177,7 +177,7 @@ let process_file (file, ftype) =
   let modulename = String.capitalize(Filename.basename prefixname) in
   Env.set_unit_name modulename;
   let inputfile = preprocess file in
-  let dfile = (inputfile, read_file inputfile) in
+  let dfile = (file, read_file file) in
   let doctree, cmd_name = 
     match ftype with
       Impl_file -> 
