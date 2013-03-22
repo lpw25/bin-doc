@@ -1,4 +1,6 @@
 
+BINDIR=./bin
+
 OCAMLC=ocamlc
 OCAMLLINK=ocamlc
 OCAMLLEX=ocamllex
@@ -12,7 +14,7 @@ OCAMLYACCFLAGS=
 %.ml: %.mll
 	${OCAMLLEX} ${OCAMLLEXFLAGS} $<
 
-%.ml: %.mly
+%.ml %.mli: %.mly
 	${OCAMLYACC} ${OCAMLYACCFLAGS} $<
 
 %.cmi: %.mli
@@ -21,13 +23,20 @@ OCAMLYACCFLAGS=
 %.cmo %.cmi: %.ml
 	${OCAMLC} ${OCAMLCFLAGS} -c $<
 
-.PRECIOUS: info_lexer.ml
+.PRECIOUS: info_lexer.ml info_parser.ml info_parser.mli
 
 all: bin-doc
 
 clean:
 	-rm *.cmi *.cmo
+	-rm info_lexer.ml
+	-rm info_parser.ml
+	-rm info_parser.mli
 	-rm bin-doc
+
+install: all
+	-mkdir -p ${BINDIR}
+	cp bin-doc ${BINDIR}/bin-doc
 
 bin-doc: info.cmo errors.cmo doctree.cmo info_parser.cmo info_lexer.cmo comments.cmo inlinedoc.cmo driver.cmo 
 	${OCAMLLINK} ${OCAMLLINKFLAGS} -o $@ $^

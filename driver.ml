@@ -178,7 +178,7 @@ let process_file (file, ftype) =
   Env.set_unit_name modulename;
   let inputfile = preprocess file in
   let dfile = (inputfile, read_file inputfile) in
-  let doctree = 
+  let doctree, cmd_name = 
     match ftype with
       Impl_file -> 
         let parsetree = 
@@ -190,7 +190,8 @@ let process_file (file, ftype) =
         in
         Warnings.check_fatal ();
         let doctree = Inlinedoc.parse_implementation dfile parsetree in
-          Doctree.Dfile_impl doctree
+          let cmd_name = prefixname ^ ".cmd" in
+          Doctree.Dfile_impl doctree, cmd_name
     | Intf_file ->
         let parsetree = 
           Pparse.file 
@@ -201,10 +202,10 @@ let process_file (file, ftype) =
         in
         Warnings.check_fatal ();
         let doctree = Inlinedoc.parse_interface dfile parsetree in
-          Doctree.Dfile_intf doctree
+          let cmd_name = prefixname ^ ".cmdi" in
+            Doctree.Dfile_intf doctree, cmd_name
   in
   Pparse.remove_preprocessed inputfile;
-  let cmd_name = prefixname ^ ".cmd" in
     save_cmd cmd_name modulename file doctree
 
 let _ = 
