@@ -205,6 +205,7 @@ let process_file (file, ftype) =
           let cmd_name = prefixname ^ ".cmdi" in
             Doctree.Dfile_intf doctree, cmd_name
   in
+  Printdoctree.file 0 (Format.std_formatter) doctree;
   Pparse.remove_preprocessed inputfile;
     save_cmd cmd_name modulename file doctree
 

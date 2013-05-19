@@ -38,7 +38,7 @@ install: all
 	-mkdir -p ${BINDIR}
 	cp bin-doc ${BINDIR}/bin-doc
 
-bin-doc: info.cmo errors.cmo doctree.cmo info_parser.cmo info_lexer.cmo comments.cmo inlinedoc.cmo driver.cmo 
+bin-doc: info.cmo errors.cmo doctree.cmo printdoctree.cmo info_parser.cmo info_lexer.cmo comments.cmo inlinedoc.cmo driver.cmo 
 	${OCAMLLINK} ${OCAMLLINKFLAGS} -o $@ $^
 
 info.cmo: info.cmi
@@ -46,6 +46,8 @@ info.cmo: info.cmi
 errors.cmo: errors.cmi
 
 doctree.cmo: info.cmo doctree.cmi
+
+printdoctree.cmo: info.cmo doctree.cmo inlinedoc.cmo
 
 info_parser.cmo: info.cmo info_parser.cmi
 
@@ -55,10 +57,12 @@ comments.cmo: comments.cmi
 
 inlinedoc.cmo: doctree.cmo info_parser.cmo info_lexer.cmo comments.cmo inlinedoc.cmi
 
-driver.cmo: doctree.cmo inlinedoc.cmo
+driver.cmo: doctree.cmo inlinedoc.cmo printdoctree.cmo
 
 
 doctree.cmi: info.cmi
+
+printdoctree.cmi: info.cmo doctree.cmo
 
 info_parser.cmi: info.cmi
 
