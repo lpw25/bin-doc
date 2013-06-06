@@ -180,19 +180,19 @@ let process_file (file, ftype) =
   let dfile = (file, read_file file) in
   let doctree, cmd_name = 
     match ftype with
-      Impl_file -> 
-        let parsetree = 
-          Pparse.file 
-            Format.err_formatter 
-            inputfile 
-            Parse.implementation 
-            ast_impl_magic_number 
-        in
-        Warnings.check_fatal ();
-        let doctree = Inlinedoc.parse_implementation dfile parsetree in
+	Impl_file -> 
+          let parsetree = 
+            Pparse.file 
+              Format.err_formatter 
+              inputfile 
+              Parse.implementation 
+              ast_impl_magic_number 
+          in
+          Warnings.check_fatal ();
+          let doctree = Inlinedoc.parse_implementation dfile parsetree in
           let cmd_name = prefixname ^ ".cmd" in
           Doctree.Dfile_impl doctree, cmd_name
-    | Intf_file ->
+      | Intf_file ->
         let parsetree = 
           Pparse.file 
             Format.err_formatter 
@@ -202,12 +202,15 @@ let process_file (file, ftype) =
         in
         Warnings.check_fatal ();
         let doctree = Inlinedoc.parse_interface dfile parsetree in
-          let cmd_name = prefixname ^ ".cmdi" in
-            Doctree.Dfile_intf doctree, cmd_name
+        let cmd_name = prefixname ^ ".cmdi" in
+        Doctree.Dfile_intf doctree, cmd_name
   in
-  Printdoctree.file 0 (Format.std_formatter) doctree;
+  (*
+  (* debug *)
+     Printdoctree.file 0 (Format.std_formatter) doctree;
+  *)
   Pparse.remove_preprocessed inputfile;
-    save_cmd cmd_name modulename file doctree
+  save_cmd cmd_name modulename file doctree
 
 let _ = 
   try

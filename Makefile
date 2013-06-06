@@ -6,7 +6,7 @@ OCAMLLINK=ocamlc
 OCAMLLEX=ocamllex
 OCAMLYACC=ocamlyacc
 
-OCAMLCFLAGS=-g -I +compiler-libs
+OCAMLCFLAGS=-g -I +compiler-libs #-annot
 OCAMLLINKFLAGS=-g -I +compiler-libs ocamlcommon.cma
 OCAMLLEXFLAGS=
 OCAMLYACCFLAGS=
