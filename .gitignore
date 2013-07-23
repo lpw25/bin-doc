@@ -1,0 +1,9 @@
+*.cm[io]
+*.annot
+*.cm[td]
+log.txt
+bin-doc
+info_lexer.ml
+info_parser.ml
+info_parser.mli
+*~

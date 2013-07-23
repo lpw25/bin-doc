@@ -6,7 +6,7 @@ OCAMLLINK=ocamlc
 OCAMLLEX=ocamllex
 OCAMLYACC=ocamlyacc
 
-OCAMLCFLAGS=-g -I +compiler-libs
+OCAMLCFLAGS=-g -I +compiler-libs #-annot
 OCAMLLINKFLAGS=-g -I +compiler-libs ocamlcommon.cma
 OCAMLLEXFLAGS=
 OCAMLYACCFLAGS=
@@ -47,7 +47,7 @@ errors.cmo: errors.cmi
 
 doctree.cmo: info.cmo doctree.cmi
 
-printdoctree.cmo: info.cmo doctree.cmo inlinedoc.cmo
+printdoctree.cmo: printdoctree.cmi info.cmo doctree.cmo inlinedoc.cmo
 
 info_parser.cmo: info.cmo info_parser.cmi
 

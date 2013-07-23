@@ -65,7 +65,7 @@ let initial_env () =
 let preprocess sourcefile =
   try
     Pparse.preprocess sourcefile
-  with Pparse.Error ->
+  with Pparse.Error _ ->
     Printf.eprintf "Preprocessing error\n";
     exit 2
 
@@ -117,7 +117,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _c = set compile_only
   let _cc s = c_compiler := Some s
   let _cclib s = ccobjs := Misc.rev_split_words s @ !ccobjs
-  let _ccopt s = ccopts := s :: !ccopts
+  (*let _ccopt s = ccopts := s :: !ccopts*)
   let _config = show_config
   let _custom = set custom_runtime
   let _dllib s = dllibs := Misc.rev_split_words s @ !dllibs
@@ -164,6 +164,15 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _dlambda = set dump_lambda
   let _dinstr = set dump_instr
   let anonymous = anonymous
+
+(* To check *)    
+  let _dtypedtree = ignore
+  let _dsource = ignore
+  let _short_paths = ignore
+  let _ppx = ignore
+  let _compat_32 = ignore
+  let _ccopt = ignore
+
 end)
 
 let parse_args () =
@@ -180,19 +189,19 @@ let process_file (file, ftype) =
   let dfile = (file, read_file file) in
   let doctree, cmd_name = 
     match ftype with
-      Impl_file -> 
-        let parsetree = 
-          Pparse.file 
-            Format.err_formatter 
-            inputfile 
-            Parse.implementation 
-            ast_impl_magic_number 
-        in
-        Warnings.check_fatal ();
-        let doctree = Inlinedoc.parse_implementation dfile parsetree in
+	Impl_file -> 
+          let parsetree = 
+            Pparse.file 
+              Format.err_formatter 
+              inputfile 
+              Parse.implementation 
+              ast_impl_magic_number 
+          in
+          Warnings.check_fatal ();
+          let doctree = Inlinedoc.parse_implementation dfile parsetree in
           let cmd_name = prefixname ^ ".cmd" in
           Doctree.Dfile_impl doctree, cmd_name
-    | Intf_file ->
+      | Intf_file ->
         let parsetree = 
           Pparse.file 
             Format.err_formatter 
@@ -202,12 +211,15 @@ let process_file (file, ftype) =
         in
         Warnings.check_fatal ();
         let doctree = Inlinedoc.parse_interface dfile parsetree in
-          let cmd_name = prefixname ^ ".cmdi" in
-            Doctree.Dfile_intf doctree, cmd_name
+        let cmd_name = prefixname ^ ".cmdi" in
+        Doctree.Dfile_intf doctree, cmd_name
   in
-  Printdoctree.file 0 (Format.std_formatter) doctree;
+  (*
+  (* debug *)
+     Printdoctree.file 0 (Format.std_formatter) doctree;
+  *)
   Pparse.remove_preprocessed inputfile;
-    save_cmd cmd_name modulename file doctree
+  save_cmd cmd_name modulename file doctree
 
 let _ = 
   try
