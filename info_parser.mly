@@ -15,44 +15,35 @@ open Errors
 
 let remove_opening_blanks s = 
   let length = String.length s in  
-  let rec get_start i =
-    if i >= length then length else
+  let rec loop i =
+    if i >= length then "" else
     match s.[i] with
-    | '\010' | '\013' | ' ' | '\009' | '\012' -> get_start (i + 1)
-    | _ -> i 
+    | '\010' | '\013' | ' ' | '\009' | '\012' -> loop (i + 1)
+    | _ -> String.sub s i (length - i)
   in
-  let start = get_start 0 in
-    if start = length then None
-    else Some (String.sub s start (length - start))
+    loop 0
 
 let remove_closing_blanks s =
   let length = String.length s in
-  let rec get_finish i =
-    if i <= 0 then 0 else
+  let rec loop i =
+    if i < 0 then "" else
     match s.[i] with
-    | '\010' | '\013' | ' ' | '\009' | '\012' -> get_finish (i - 1)
-    | _ -> i 
+    | '\010' | '\013' | ' ' | '\009' | '\012' -> loop (i - 1)
+    | _ -> String.sub s 0 (i + 1)
   in
-  let finish = get_finish (length - 1) in
-  let new_length = finish + 1 in
-    if new_length = length then Some s (* fix : None => Some s .. bug if no space is present before the last word and the closing comm tag *)
-    else Some (String.sub s 0 new_length)
+    loop (length - 1)
 
 let remove_blanks s =
-  match remove_opening_blanks s with
-    None -> ""
-  | Some s ->
-    match remove_closing_blanks s with
-      None -> ""
-    | Some s -> s
+  let s = remove_opening_blanks s in
+    remove_closing_blanks s
 
 let remove_text_blanks tl =
   let rec loop remove tl =
       match tl with
         Raw s :: rest -> begin
           match remove s with
-            None -> loop remove rest
-          | Some s -> Raw s :: rest
+            "" -> loop remove rest
+          | s -> Raw s :: rest
         end
       | Newline :: rest -> 
           loop remove rest
