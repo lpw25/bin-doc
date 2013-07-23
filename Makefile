@@ -47,7 +47,7 @@ errors.cmo: errors.cmi
 
 doctree.cmo: info.cmo doctree.cmi
 
-printdoctree.cmo: info.cmo doctree.cmo inlinedoc.cmo
+printdoctree.cmo: printdoctree.cmi info.cmo doctree.cmo inlinedoc.cmo
 
 info_parser.cmo: info.cmo info_parser.cmi
 

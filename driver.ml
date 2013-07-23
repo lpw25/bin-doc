@@ -65,7 +65,7 @@ let initial_env () =
 let preprocess sourcefile =
   try
     Pparse.preprocess sourcefile
-  with Pparse.Error ->
+  with Pparse.Error _ ->
     Printf.eprintf "Preprocessing error\n";
     exit 2
 
@@ -117,7 +117,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _c = set compile_only
   let _cc s = c_compiler := Some s
   let _cclib s = ccobjs := Misc.rev_split_words s @ !ccobjs
-  let _ccopt s = ccopts := s :: !ccopts
+  (*let _ccopt s = ccopts := s :: !ccopts*)
   let _config = show_config
   let _custom = set custom_runtime
   let _dllib s = dllibs := Misc.rev_split_words s @ !dllibs
@@ -164,6 +164,15 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _dlambda = set dump_lambda
   let _dinstr = set dump_instr
   let anonymous = anonymous
+
+(* To check *)    
+  let _dtypedtree = ignore
+  let _dsource = ignore
+  let _short_paths = ignore
+  let _ppx = ignore
+  let _compat_32 = ignore
+  let _ccopt = ignore
+
 end)
 
 let parse_args () =
