@@ -1,6 +1,7 @@
 
 open Config
 open Clflags
+open Compenv
 
 let cmd_magic_number = "Caml2013E001"
 
@@ -117,8 +118,9 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _c = set compile_only
   let _cc s = c_compiler := Some s
   let _cclib s = ccobjs := Misc.rev_split_words s @ !ccobjs
-  (*let _ccopt s = ccopts := s :: !ccopts*)
+  let _ccopt s = first_ccopts := s :: !first_ccopts
   let _config = show_config
+  let _compat_32 = set bytecode_compatible_32
   let _custom = set custom_runtime
   let _dllib s = dllibs := Misc.rev_split_words s @ !dllibs
   let _dllpath s = dllpaths := !dllpaths @ [s]
@@ -141,9 +143,11 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _output_obj () = output_c_object := true; custom_runtime := true
   let _pack = set make_package
   let _pp s = preprocessor := Some s
+  let _ppx s = first_ppx := s :: !first_ppx
   let _principal = set principal
   let _rectypes = set recursive_types
   let _runtime_variant s = runtime_variant := s
+  let _short_paths = unset real_paths
   let _strict_sequence = set strict_sequence
   let _thread = set use_threads
   let _vmthread = set use_vmthreads
@@ -159,19 +163,13 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _where = print_standard_library
   let _verbose = set verbose
   let _nopervasives = set nopervasives
+  let _dsource = set dump_source
   let _dparsetree = set dump_parsetree
+  let _dtypedtree = set dump_typedtree
   let _drawlambda = set dump_rawlambda
   let _dlambda = set dump_lambda
   let _dinstr = set dump_instr
   let anonymous = anonymous
-
-(* To check *)    
-  let _dtypedtree = ignore
-  let _dsource = ignore
-  let _short_paths = ignore
-  let _ppx = ignore
-  let _compat_32 = ignore
-  let _ccopt = ignore
 
 end)
 
