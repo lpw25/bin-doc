@@ -35,7 +35,7 @@ let remove_closing_blanks s =
   in
   let finish = get_finish (length - 1) in
   let new_length = finish + 1 in
-    if new_length = length then None
+    if new_length = length then Some s (* fix : None => Some s .. bug if no space is present before the last word and the closing comm tag *)
     else Some (String.sub s 0 new_length)
 
 let remove_blanks s =
