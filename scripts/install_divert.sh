@@ -3,11 +3,6 @@ set -e
 
 dir=$(dirname $(which ocamlc))
 echo Installing divert in: ${dir}
-read -p "Continue (y/n)? " choice
-case "$choice" in
-  y|Y ) echo "yes";;
-  * ) echo "exiting"; exit 1;;
-esac
 
 if [ -e "${dir}/ocamlc.orig" ]; then
   echo Divert already installed, aborting.
