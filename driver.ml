@@ -219,10 +219,9 @@ let process_file (file, ftype) =
   Pparse.remove_preprocessed inputfile;
   save_cmd cmd_name modulename file doctree
 
-let _ = 
+let _ =
   try
     parse_args ();
     List.iter process_file !files
-  with Errors.Error(e, loc) ->
-    Errors.report_error Format.err_formatter loc e
-  
+  with Bindoc_errors.Error(e, loc) ->
+    Bindoc_errors.report_error Format.err_formatter loc e

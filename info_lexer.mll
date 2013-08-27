@@ -14,7 +14,7 @@
 
 open Info
 open Info_parser
-open Errors
+open Bindoc_errors
 open Lexing
 
 (* Update the current location with file name and line number. *)

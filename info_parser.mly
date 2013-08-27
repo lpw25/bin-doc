@@ -11,7 +11,7 @@
 (***********************************************************************)
 
 open Info
-open Errors
+open Bindoc_errors
 
 let remove_opening_blanks s = 
   let length = String.length s in  

@@ -15,7 +15,7 @@
 (** The lexer for special comments. *)
 
 open Lexing
-open Errors
+open Bindoc_errors
 
 (* The type of comments returned by the lexer*)
 
