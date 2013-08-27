@@ -18,3 +18,6 @@ install:
 	mkdir -p $(BINDIR)
 	cp $(TARGET).byte $(BINDIR)/$(BINNAME)
 	cp $(TARGET).native $(BINDIR)/$(BINNAME).opt
+
+divert:
+	cd scripts && ./install_divert.sh
