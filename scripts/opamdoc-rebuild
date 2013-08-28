@@ -40,7 +40,7 @@ for pkg in ${PKGS}; do
   for cmd in ${CMDS}; do
     d=$(dirname $cmd)
     calc_md5_for_file "$cmd";
-    f=$(basename -s .cmd $cmd)
+    f=$(basename $cmd .cmd)
     mkdir -p ${DOC}/$pkgname/$md5
     r=${DOC}/$pkgname/$md5/$f
     $dry cp $d/$f.cmd $r.cmd
