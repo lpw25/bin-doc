@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Rebuild the cmd/cmt archive in ~/.opam/<switch>/opamdoc
+# Copies all the cmt/cmti/cmd files found in the OPAM build
+# dir into a single directory, with MD5 to keep files distinct.
+
+set -e
+SWITCH=$(opam switch show)
+if [ "${SWITCH}" = "system" ]; then
+  echo Must be using a custom OPAM switch for this to work.
+  exit 1
+fi
+
+function calc_md5_for_file()
+{
+  if builtin command -v md5 > /dev/null; then
+    md5=$(cat $1 | md5)
+  elif builtin command -v md5sum > /dev/null ; then
+    md5=$(cat $1 | md5sum | awk '{print $1}')
+  else
+    echo "Neither md5 nor md5sum were found in the PATH"
+    exit 1
+  fi
+}
+
+BASE="$(dirname $(dirname $(ocamlc -where)))"
+BUILD=${BASE}/build
+DOC=${BASE}/opamdoc
+rm -rf ${DOC}
+mkdir -p ${DOC}
+
+CMDS=$(find ${BUILD} -type f -name \*.cmd)
+
+for cmd in ${CMDS}; do
+  d=$(dirname $cmd)
+  calc_md5_for_file "$cmd";
+  f=$(basename -s .cmd $cmd)
+  r=${DOC}/$f-$md5
+  if [ -e $d/$f.cmt ]; then
+    cp $d/$f.cmt $r.cmt
+    cp $d/$f.cmd $r.cmd
+  fi
+  if [ -e $d/$f.cmti ]; then
+    cp $d/$f.cmti $r.cmti
+    cp $d/$f.cmd $r.cmd
+  fi
+done
