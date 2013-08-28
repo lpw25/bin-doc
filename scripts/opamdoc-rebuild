@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Rebuild the cmd/cmt archive in ~/.opam/<switch>/opamdoc
 # Copies all the cmt/cmti/cmd files found in the OPAM build
-# dir into a single directory, with MD5 to keep files distinct.
+# dir into a single directory structure, separated by MD5
+# to keep files distinct.
 
 set -e
 SWITCH=$(opam switch show)
@@ -34,13 +35,16 @@ for cmd in ${CMDS}; do
   d=$(dirname $cmd)
   calc_md5_for_file "$cmd";
   f=$(basename -s .cmd $cmd)
-  r=${DOC}/$f-$md5
+  mkdir -p ${DOC}/$md5
+  r=${DOC}/$md5/$f
+  cp $d/$f.cmd $r.cmd
+  if [ -e $d/$f.cmdi ]; then
+    cp $d/$f.cmdi $r.cmdi
+  fi
   if [ -e $d/$f.cmt ]; then
     cp $d/$f.cmt $r.cmt
-    cp $d/$f.cmd $r.cmd
   fi
   if [ -e $d/$f.cmti ]; then
     cp $d/$f.cmti $r.cmti
-    cp $d/$f.cmd $r.cmd
   fi
 done
