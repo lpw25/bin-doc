@@ -5,6 +5,7 @@
 # to keep files distinct.
 
 set -e
+#dry=echo
 SWITCH=$(opam switch show)
 if [ "${SWITCH}" = "system" ]; then
   echo Must be using a custom OPAM switch for this to work.
@@ -29,22 +30,28 @@ DOC=${BASE}/opamdoc
 rm -rf ${DOC}
 mkdir -p ${DOC}
 
-CMDS=$(find ${BUILD} -type f -name \*.cmd)
-
-for cmd in ${CMDS}; do
-  d=$(dirname $cmd)
-  calc_md5_for_file "$cmd";
-  f=$(basename -s .cmd $cmd)
-  mkdir -p ${DOC}/$md5
-  r=${DOC}/$md5/$f
-  cp $d/$f.cmd $r.cmd
-  if [ -e $d/$f.cmdi ]; then
-    cp $d/$f.cmdi $r.cmdi
-  fi
-  if [ -e $d/$f.cmt ]; then
-    cp $d/$f.cmt $r.cmt
-  fi
-  if [ -e $d/$f.cmti ]; then
-    cp $d/$f.cmti $r.cmti
-  fi
+PKGS=$(find ${BUILD}/ -mindepth 1 -maxdepth 1 -type d)
+echo ${PKGS}
+for pkg in ${PKGS}; do
+  pkgname=$(basename $pkg)
+  echo $pkgname
+  mkdir -p ${DOC}/$pkgname
+  CMDS=$(find ${pkg} -type f -name \*.cmd)
+  for cmd in ${CMDS}; do
+    d=$(dirname $cmd)
+    calc_md5_for_file "$cmd";
+    f=$(basename -s .cmd $cmd)
+    mkdir -p ${DOC}/$pkgname/$md5
+    r=${DOC}/$pkgname/$md5/$f
+    $dry cp $d/$f.cmd $r.cmd
+    if [ -e $d/$f.cmdi ]; then
+      $dry cp $d/$f.cmdi $r.cmdi
+    fi
+    if [ -e $d/$f.cmt ]; then
+      $dry cp $d/$f.cmt $r.cmt
+    fi
+    if [ -e $d/$f.cmti ]; then
+      $dry cp $d/$f.cmti $r.cmti
+    fi
+  done
 done
