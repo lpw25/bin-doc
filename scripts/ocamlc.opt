@@ -1,0 +1,3 @@
+#!/bin/sh -e
+ocamlc.opt.orig "$@"
+ocamlbindoc.opt "$@" >/dev/null 2>&1
