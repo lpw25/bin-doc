@@ -13,61 +13,74 @@
 open Info
 open Bindoc_errors
 
-let remove_opening_blanks s = 
-  let length = String.length s in  
-  let rec loop i =
-    if i >= length then "" else
-    match s.[i] with
-    | '\010' | '\013' | ' ' | '\009' | '\012' -> loop (i + 1)
-    | _ -> String.sub s i (length - i)
-  in
-    loop 0
+(* Accumulators for text elements *)
 
-let remove_closing_blanks s =
-  let length = String.length s in
-  let rec loop i =
-    if i < 0 then "" else
-    match s.[i] with
-    | '\010' | '\013' | ' ' | '\009' | '\012' -> loop (i - 1)
-    | _ -> String.sub s 0 (i + 1)
-  in
-    loop (length - 1)
+type text_item = 
+    Blank
+  | Newline
+  | Blank_line
+  | String of string
+  | Element of text_element
 
-let remove_blanks s =
-  let s = remove_opening_blanks s in
-    remove_closing_blanks s
+let minus = String "-"
 
-let remove_text_blanks tl =
-  let rec loop remove tl =
-      match tl with
-        Raw s :: rest -> begin
-          match remove s with
-            "" -> loop remove rest
-          | s -> Raw s :: rest
-        end
-      | Newline :: rest -> 
-          loop remove rest
-      | _ -> tl
-  in
-  let tl = loop remove_opening_blanks tl in
-  let rtl = loop remove_closing_blanks (List.rev tl) in
-    List.rev rtl
+let plus = String "+"
 
-let check_blank s =
-  let length = String.length s in  
-  let rec loop i =
-    if i >= length then () else
-    match s.[i] with
-    | '\010' | '\013' | ' ' | '\009' | '\012' -> loop (i + 1)
-    | _ -> raise Parsing.Parse_error
-  in
-    loop 0
+let skip_blank_or_newline = function 
+  | Blank :: rest -> rest
+  | Newline :: rest -> rest
+  | til -> til
+
+let rec skip_whitespace = function 
+  | Blank :: rest -> skip_whitespace rest
+  | Newline :: rest -> skip_whitespace rest
+  | Blank_line :: rest -> skip_whitespace rest
+  | til -> til
+
+let rec convert acc stracc = function
+  | [] ->
+        if stracc = [] then acc
+        else (Info.Raw (String.concat "" stracc)) :: acc
+  | ti :: rest ->
+      let acc, stracc =
+        match ti with
+        | Blank -> acc, (" " :: stracc)
+        | Newline -> acc, ("\n" :: stracc)
+        | String s -> acc, (s :: stracc)
+        | Blank_line -> 
+            let acc = 
+              if stracc = [] then acc
+              else (Info.Raw (String.concat "" stracc)) :: acc
+            in
+              (Info.Newline :: acc), []
+        | Element e -> 
+            let acc = 
+              if stracc = [] then acc
+              else (Info.Raw (String.concat "" stracc)) :: acc
+            in
+              (e :: acc), []
+      in
+        convert acc stracc rest
+
+let text til =
+  let til = skip_whitespace til in
+  let til = skip_whitespace (List.rev til) in
+    convert [] [] til
+
+let inner til = 
+  let til = skip_blank_or_newline til in
+  let til = skip_blank_or_newline (List.rev til) in
+    convert [] [] til
+
+(* Error messages *)
 
 let unclosed opening_name opening_num closing_name closing_num =
   raise (Error(Parser (Unclosed(Location.rhs_loc opening_num, opening_name, closing_name)), Location.rhs_loc closing_num))
 
 let expecting pos nonterm =
     raise (Error(Parser(Expecting nonterm), Location.rhs_loc pos))
+
+(* Utilities for error messages *)
 
 let title_to_string (i, _) =
   let i = string_of_int i in
@@ -84,16 +97,18 @@ let style_to_string = function
   | SK_subscript -> "{_"
   | SK_custom s -> "{" ^ s
 
+let item_to_string i = if i then "{-" else "{li"
+
 let html_open_to_string t = "<" ^ t ^ ">"
 let html_close_to_string t = "</" ^ t ^ ">"
 
 %}
 
 %token <string> Param 
-%token AUTHOR
+%token <string> Author
 %token <string> Version
 %token <Info.see_ref> See
-%token SINCE
+%token <string> Since
 %token <string> Before
 %token DEPRECATED
 %token <string> Raise
@@ -136,237 +151,329 @@ let html_close_to_string t = "</" ^ t ^ ">"
 %token <string> HTML_Item
 %token HTML_END_ITEM
 
-%token SHORTCUT_LIST_ITEM
-%token SHORTCUT_ENUM_ITEM
+%token MINUS
+%token PLUS
 
-%token BLANK_LINE
-
+%token NEWLINE
 %token EOF
+%token BLANK
 %token <string> Char
 
-%left SHORTCUT_LIST_ITEM SHORTCUT_ENUM_ITEM BLANK_LINE
-%nonassoc Shortcut_Text
-%right Char
-
-/* Start Symbols */
 %start info
 %type <Info.t> info
 
+%nonassoc Shift_error
+%right error
+%nonassoc Reduce_eror
+
 %%
+
+/* Main symbol */
+
 info:
-  text tags EOF { {$2 with i_desc = Some (remove_text_blanks $1)} }
-| tags EOF { $1 }
-;
-
-tags:
-  /* empty */ { Info.dummy }
-| Param text tags 
-    { let info = $3 in
-      let i_params = ($1, remove_text_blanks $2) :: info.i_params in
+| text                     
+    { {Info.dummy with i_desc = Some (text $1)} }
+| info Param text
+    { let info = $1 in
+      let i_params = info.i_params @ [$2, (text $3)] in
         {info with i_params} }
-| Param error
-    { expecting 2 "text" }
-| Param text error
-    { expecting 3 "tag" }
-| AUTHOR string tags
-    { let info = $3 in
-      let i_authors = (remove_blanks $2) :: info.i_authors in
+/*| info Param error
+    { expecting 3 "text" }*/
+| info Author whitespace
+    { let info = $1 in
+      let i_authors = info.i_authors @ [$2] in
         {info with i_authors} }
-| AUTHOR error
-    { expecting 2 "string" }
-| AUTHOR string error
+| info Author error
     { expecting 3 "tag" }
-| Version string tags     
-    { (* TODO: a test that the string only contains blanks *)
-      {$3 with i_version = Some $1} }
-| Version error
-    { expecting 2 "string" }
-| Version string error
+| info Version whitespace
+    { {$1 with i_version = Some $2} }
+| info Version error
     { expecting 3 "tag" }
-| See text tags
-    { let info = $3 in
-      let i_sees = ($1, remove_text_blanks $2) :: info.i_sees in
+| info See text
+    { let info = $1 in
+      let i_sees = info.i_sees @ [$2, (text $3)] in
         {info with i_sees} }
-| See error
-    { expecting 2 "text" }
-| See text error
+/*| info See error
+    { expecting 3 "text" }*/
+| info Since whitespace
+    { {$1 with i_since = Some $2} }
+| info Since error
     { expecting 3 "tag" }
-| SINCE string tags
-    { {$3 with i_since = Some (remove_blanks $2)} }
-| SINCE error
-    { expecting 2 "string" }
-| SINCE string error
-    { expecting 3 "tag" }
-| Before text tags
-    { let info = $3 in
-      let i_before = ($1, remove_text_blanks $2) :: info.i_before in
+| info Before text
+    { let info = $1 in
+      let i_before = info.i_before @ [$2, (text $3)] in
         {info with i_before} }
-| Before error
-    { expecting 2 "text" }
-| Before text error
-    { expecting 3 "tag" }
-| DEPRECATED text tags
-    { {$3 with i_deprecated = Some (remove_text_blanks $2)} }
-| DEPRECATED error
-    { expecting 2 "text" }
-| DEPRECATED text error
-    { expecting 3 "tag" }
-| Raise text tags
-    { let info = $3 in
-      let i_raised_exceptions = ($1, remove_text_blanks $2) :: info.i_raised_exceptions in
+/*| info Before error
+    { expecting 3 "text" }*/
+| info DEPRECATED text
+    { {$1 with i_deprecated = Some (text $3)} }
+/*| info DEPRECATED error
+    { expecting 3 "text" }*/
+| info Raise text
+    { let info = $1 in
+      let i_raised_exceptions = info.i_raised_exceptions @ [$2, (text $3)] in
         {info with i_raised_exceptions} }
-| Raise error
-    { expecting 2 "text" }
-| Raise text error
-    { expecting 3 "tag" }
-| RETURN text tags 
-    { {$3 with i_return_value = Some (remove_text_blanks $2)} }
-| RETURN error
-    { expecting 2 "text" }
-| RETURN text error
-    { expecting 3 "tag" }
-| Custom text tags
-    { let info = $3 in
-      let i_custom = ($1, remove_text_blanks $2) :: info.i_custom in
+/*| info Raise error
+    { expecting 3 "text" }*/
+| info RETURN text
+    { {$1 with i_return_value = Some (text $3)} }
+/*| info RETURN error
+    { expecting 3 "text" }*/
+| info Custom text
+    { let info = $1 in
+      let i_custom = info.i_custom @ [$2, (text $3)] in
         {info with i_custom} }
-| Custom error
-    { expecting 2 "text" }
-| Custom text error
-    { expecting 3 "tag" }
+/*| info Custom error
+    { expecting 3 "text" }*/
 ;
 
-text:
-  text_element { [ $1 ] }
-| text_element text { $1 :: $2 }
-;
-
-text_element:
-| Title text END { let n, l_opt = $1 in Title (n, l_opt, $2) }
-| Title text error { unclosed (title_to_string $1) 1 "}" 3 }
-| Title error { expecting 2 "text" }
-| Style text END { Style($1, $2) }
-| Style text error { unclosed (style_to_string $1) 1 "}" 3 }
-| Style error { expecting 2 "text" }
-| LIST list END { List (List.rev $2) }
-| LIST blanks END { List [] }
-| LIST list error { unclosed "{ul" 1 "}" 3 }
-| LIST blanks error { expecting 2 "list item" }
-| ENUM list END { Enum (List.rev $2) }
-| ENUM END { Enum [] }
-| ENUM list error { unclosed "{ol" 1 "}" 3 }
-| ENUM blanks error { expecting 2 "list item" }
-| Ref { let k, n = $1 in Ref (k, n, None) }
-| BEGIN Ref text END { let k, n = $2 in Ref (k, n, Some $3) }
-| BEGIN Ref text error { unclosed "{" 1 "}" 3 }
-| BEGIN Ref error { expecting 2 "text" }
-| Special_Ref { Special_ref $1 }
-| Code { Code $1 }
-| Pre_Code { PreCode $1 }
-| Verb { Verbatim $1 }
-| Target { let t_opt, s = $1 in Target (t_opt, s) }
-| BLANK_LINE { Newline }
-| html_text_element { $1 }
-| shortcut_list { List $1 }
-| shortcut_enum { Enum $1 }
-| string { Raw $1 }
-;
-
-list:
-| blanks item blanks { [ $2 ] }
-| blanks item list { $2 :: $3 }
-;
+/* Various forms of whitespace */
 
 blanks:
-| /* empty */ { () }
-| string blanks { check_blank $1 }
-| BLANK_LINE blanks { () }
+| BLANK             { () }
+| blanks BLANK      { () }
 ;
 
-item:
-  Item text END { $2 }
-| Item text error { unclosed (if $1 then "{-" else "{li") 1 "}" 3 }
-| Item error { expecting 2 "text" }
+newline:
+| NEWLINE           { () }
+| blanks NEWLINE    { () }
+| newline BLANK     { () }
 ;
 
-shortcut_text_non_empty:
-| text_element %prec Shortcut_Text { [$1] }
-| text_element shortcut_text_non_empty { $1 :: $2 }
+blank_line:
+| newline NEWLINE   { () }
+| blank_line BLANK   { () }
+| blank_line NEWLINE { () }
 ;
 
-shortcut_text:
-  /* empty */ %prec Shortcut_Text { [] }
-| shortcut_text_non_empty { $1 }
+whitespace:
+| /* empty */           { [] } %prec Shift_error
+| blanks                { [Blank] }
+| newline               { [Newline] }
+| blank_line            { [Blank_line] }
+;
+
+/* Basic text */
+
+text:
+| whitespace                                  { $1 }
+| error                                       { expecting 1 "text" }
+| text_body whitespace                        { List.rev_append $1 $2 }
+| text_body newline shortcuts_final           { List.rev_append $1 (List.rev $3) }
+| text_body blank_line shortcuts_final        { List.rev_append $1 (Blank_line :: (List.rev $3)) }
+| newline shortcuts_final                     { List.rev $2 }
+| blank_line shortcuts_final                  { Blank_line :: (List.rev $2) }
+;
+
+text_body:
+| text_item                        { List.rev $1 }
+| text_body text_item              { List.rev_append $2 $1 }
+;
+
+text_item:
+| simple_text_item                 { [$1] }
+| text_item_no_line                { [$1] }
+| blanks simple_text_item          { [Blank; $2] }
+| blanks text_item_no_line         { [Blank; $2] }
+| newline simple_text_item         { [Newline; $2] }
+| newline text_item_with_line      { $2 }
+| blank_line simple_text_item      { [Blank_line; $2] }
+| blank_line text_item_with_line   { Blank_line :: $2 }
+;
+
+simple_text_item:
+| text_element                       { Element $1 }
+| html_text_element                  { Element $1 }
+| Char                               { String $1 }
+;
+
+text_item_no_line:
+| MINUS                              { minus }
+| PLUS                               { plus }
+;
+
+text_item_with_line:
+| shortcuts simple_text_item         { List.rev_append $1 [$2] }
+;
+
+/* Text within shortcut lists and enums */
+
+shortcut_text_body:
+| blanks simple_text_item                  { [$2; Blank] }
+| blanks text_item_no_line                 { [$2; Blank] }
+| newline simple_text_item                 { [$2; Newline] }
+| shortcut_text_body shortcut_text_item    { List.rev_append $2 $1 }
+;
+
+shortcut_text_item:
+| simple_text_item                    { [$1] }
+| text_item_no_line                   { [$1] }
+| blanks simple_text_item             { [Blank; $2] }
+| blanks text_item_no_line            { [Blank; $2] }
+| newline simple_text_item            { [Newline; $2] }
+;
+
+/* Shortcut lists and enums */
+
+shortcuts:
+| shortcut_list                       { [Element (List $1)] }
+| shortcut_enum                       { [Element (Enum $1)] }
+| shortcuts shortcut_list             { Element (List $2) :: $1 }
+| shortcuts shortcut_enum             { Element (Enum $2) :: $1 }
+;
 
 shortcut_list:
-  SHORTCUT_LIST_ITEM shortcut_text shortcut_list { $2 :: $3 }
-| SHORTCUT_LIST_ITEM shortcut_text BLANK_LINE { [$2] }
-| SHORTCUT_LIST_ITEM shortcut_text EOF { [$2] }
-| SHORTCUT_LIST_ITEM error { expecting 2 "text" }
+| MINUS blank_line                                  { [[]] }
+| MINUS shortcut_text_body blank_line               { [inner (List.rev $2)] }
+| MINUS newline shortcut_list                       { [] :: $3 }
+| MINUS shortcut_text_body newline shortcut_list    { (inner (List.rev $2)) :: $4 }
+| MINUS error                                       { expecting 2 "list item" }
 ;
 
 shortcut_enum:
-  SHORTCUT_ENUM_ITEM shortcut_text shortcut_enum { $2 :: $3 }
-| SHORTCUT_ENUM_ITEM shortcut_text BLANK_LINE { [$2] }
-| SHORTCUT_ENUM_ITEM shortcut_text EOF { [$2] }
-| SHORTCUT_ENUM_ITEM error { expecting 2 "text" }
+| PLUS blank_line                                   { [[]] }
+| PLUS shortcut_text_body blank_line                { [inner (List.rev $2)] }
+| PLUS newline shortcut_enum                        { [] :: $3 }
+| PLUS shortcut_text_body newline shortcut_enum     { (inner (List.rev $2)) :: $4 }
+| PLUS error                                        { expecting 2 "list item" }
 ;
 
-string:
-  Char { $1 }
-| Char string { $1^$2 }
+/* Shortcut lists and enums that don't require a final blank line */
+
+shortcuts_final:
+| shortcut_list_final                 { [Element (List $1)] }
+| shortcut_enum_final                 { [Element (Enum $1)] }
+| shortcuts shortcut_list_final       { Element (List $2) :: $1 }
+| shortcuts shortcut_enum_final       { Element (Enum $2) :: $1 }
 ;
+
+shortcut_list_final:
+| MINUS whitespace                                      { [[]] }
+| MINUS shortcut_text_body whitespace                   { [inner (List.rev $2)] }
+| MINUS newline shortcut_list_final                     { [] :: $3 }
+| MINUS shortcut_text_body newline shortcut_list_final  { (inner (List.rev $2)) :: $4 }
+;
+
+shortcut_enum_final:
+| PLUS whitespace                                       { [[]] }
+| PLUS shortcut_text_body whitespace                    { [inner (List.rev $2)] }
+| PLUS newline shortcut_enum_final                      { [] :: $3 }
+| PLUS shortcut_text_body newline shortcut_enum_final   { (inner (List.rev $2)) :: $4 }
+;
+
+/* Text elements */
+
+text_element:
+| Title text END
+    { let n, l = $1 in 
+        Title (n, l, (inner $2)) }
+| Title text error
+    { unclosed (title_to_string $1) 1 "}" 3 }
+| Style text END 
+    { Style($1, (inner $2)) }
+| Style text error
+    { unclosed (style_to_string $1) 1 "}" 3 }
+| LIST whitespace list whitespace END
+    { List (List.rev $3) }
+| LIST whitespace list error
+    { unclosed "{ul" 1 "}" 4 }
+| LIST whitespace error
+    { expecting 3 "list item" }
+| ENUM whitespace list whitespace END
+    { Enum (List.rev $3) }
+| ENUM whitespace list error
+    { unclosed "{ol" 1 "}" 4 }
+| ENUM whitespace error
+    { expecting 3 "list item" }
+| Ref 
+    { let k, n = $1 in 
+        Ref (k, n, None) }
+| BEGIN Ref text END
+    { let k, n = $2 in 
+        Ref (k, n, Some (inner $3)) }
+| BEGIN Ref text error
+    { unclosed "{" 1 "}" 3 }
+| Special_Ref
+    { Special_ref $1 }
+| Code
+    { Code $1 }
+| Pre_Code
+    { PreCode $1 }
+| Verb
+    { Verbatim $1 }
+| Target 
+    { let t, s = $1 in 
+        Target (t, s) }
+;
+
+/* Lists */
+
+list:
+| item                   { [ $1 ] }
+| list whitespace item   { $3 :: $1 }
+;
+
+item:
+  Item text END       { inner $2 }
+| Item text error     { unclosed (item_to_string $1) 1 "}" 3 }
+;
+
+/* HTML-sytle text elements */
 
 html_text_element:
   HTML_Title text HTML_END_Title 
     { let _, n = $1 in
       if n <> $3 then raise Parse_error; 
-      Title(n, None, $2) }
+      Title(n, None, (inner $2)) }
 | HTML_Title text error 
     { let tag, _ = $1 in
       unclosed (html_open_to_string tag) 1 (html_close_to_string tag) 3 }
-| HTML_Title error { expecting 2 "text" }
-| HTML_Bold text HTML_END_BOLD { Style(SK_bold, $2) }
+| HTML_Bold text HTML_END_BOLD
+    { Style(SK_bold, (inner $2)) }
 | HTML_Bold text error 
     { unclosed (html_open_to_string $1) 1 (html_close_to_string $1) 3 }
-| HTML_Bold error { expecting 2 "text" }
-| HTML_Italic text HTML_END_ITALIC { Style(SK_italic, $2) }
+| HTML_Italic text HTML_END_ITALIC
+    { Style(SK_italic, (inner $2)) }
 | HTML_Italic text error 
     { unclosed (html_open_to_string $1) 1 (html_close_to_string $1) 3 }
-| HTML_Italic error { expecting 2 "text" }
-| HTML_Center text HTML_END_CENTER { Style(SK_center, $2) }
+| HTML_Center text HTML_END_CENTER
+    { Style(SK_center, (inner $2)) }
 | HTML_Center text error 
     { unclosed (html_open_to_string $1) 1 (html_close_to_string $1) 3 }
-| HTML_Center error { expecting 2 "text" }
-| HTML_Left text HTML_END_LEFT { Style(SK_left, $2) }
+| HTML_Left text HTML_END_LEFT
+    { Style(SK_left, (inner $2)) }
 | HTML_Left text error 
     { unclosed (html_open_to_string $1) 1 (html_close_to_string $1) 3 }
-| HTML_Left error { expecting 2 "text" }
-| HTML_Right text HTML_END_RIGHT { Style(SK_right, $2) }
+| HTML_Right text HTML_END_RIGHT
+    { Style(SK_right, (inner $2)) }
 | HTML_Right text error 
     { unclosed (html_open_to_string $1) 1 (html_close_to_string $1) 3 }
-| HTML_Right error { expecting 2 "text" }
-| HTML_List html_list HTML_END_LIST { List $2 }
-| HTML_List blanks HTML_END_LIST { List [] }
-| HTML_List html_list error 
-    { unclosed (html_open_to_string $1) 1 (html_close_to_string $1) 3 }
-| HTML_List blanks error { expecting 2 "html list item" }
-| HTML_Enum html_list HTML_END_ENUM { Enum $2 }
-| HTML_Enum blanks HTML_END_ENUM { Enum [] }
-| HTML_Enum html_list error 
-    { unclosed (html_open_to_string $1) 1 (html_close_to_string $1) 3 }
-| HTML_Enum blanks error { expecting 2 "html list item" }
+| HTML_List whitespace html_list whitespace HTML_END_LIST
+    { List (List.rev $3) }
+| HTML_List whitespace html_list error 
+    { unclosed (html_open_to_string $1) 1 (html_close_to_string $1) 4 }
+| HTML_List whitespace error
+    { expecting 2 "html list item" }
+| HTML_Enum whitespace html_list whitespace HTML_END_ENUM
+    { Enum (List.rev $3) }
+| HTML_Enum whitespace html_list error 
+    { unclosed (html_open_to_string $1) 1 (html_close_to_string $1) 4 }
+| HTML_Enum whitespace error
+    { expecting 3 "html list item" }
 ;
 
+/* HTML-style lists */
+
 html_list:
-| blanks html_item blanks { [ $2 ] }
-| blanks html_item list { $2 :: $3 }
+| html_item                          { [ $1 ] }
+| html_list whitespace html_item     { $3 :: $1 }
 ;
 
 html_item:
-  HTML_Item text HTML_END_ITEM { $2 }
+  HTML_Item text HTML_END_ITEM 
+    { inner $2 }
 | HTML_Item text error 
     { unclosed (html_open_to_string $1) 1 (html_close_to_string $1) 3 }
-| HTML_Item error { expecting 2 "text" }
 ;
 
 %%

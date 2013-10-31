@@ -34,7 +34,7 @@ let lex_comments ?bound ?start ?finish file =
     | Some bound, None -> bound.loc_start
     | None, None -> 
         { pos_fname = fname;
-   	  pos_lnum = 0;
+   	  pos_lnum = 1;
    	  pos_bol = 0;
    	  pos_cnum = 0; }
   in
@@ -97,8 +97,9 @@ let parse_extra_comments mk_com stop coms =
   let rec loop acc coms =
     match coms with
       [] -> List.rev acc
-    | Special(str, pos) :: rest -> 
+    | Special(str, loc) :: rest -> 
       let lexbuf = Lexing.from_string str in
+      Info_lexer.update_loc lexbuf loc;
       let info = Info_parser.info Info_lexer.main lexbuf in
       let com = mk_com info in
         loop (com :: acc) rest

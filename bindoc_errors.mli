@@ -24,6 +24,7 @@ type lexer_error =
 | Unterminated_see_file
 | Unterminated_see_doc
 | Expected_ident
+| Expected_name
 | Expected_version
 | Expected_exception
 

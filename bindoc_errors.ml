@@ -24,6 +24,7 @@ type lexer_error =
 | Unterminated_see_file
 | Unterminated_see_doc
 | Expected_ident
+| Expected_name
 | Expected_version
 | Expected_exception
 
@@ -101,6 +102,9 @@ let report_lexer_error ppf loc = function
   | Expected_ident ->
       fprintf ppf "%aSyntax error: expected identifier@."
           Location.print_error loc
+  | Expected_name ->
+      fprintf ppf "%aSyntax error: expected author name@."
+          Location.print_error loc
   | Expected_version ->
       fprintf ppf "%aSyntax error: expected version string@."
           Location.print_error loc
@@ -112,11 +116,11 @@ let report_parser_error ppf loc = function
   | Unclosed(opening_loc, opening, closing) ->
       fprintf ppf "%aSyntax error: '%s' expected@."
         Location.print_error loc closing;
-      fprintf ppf "%aThis '%s' might be unmatched"
+      fprintf ppf "%aThis '%s' might be unmatched@."
         Location.print_error opening_loc opening
   | Expecting nonterm ->
       fprintf ppf
-        "%a@[Syntax error: %s expected.@]"
+        "%aSyntax error: %s expected@."
         Location.print_error loc nonterm
 
 let report_comments_error ppf loc = function
